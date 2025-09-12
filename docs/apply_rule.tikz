@@ -1,0 +1,10 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=yellow-box] (0) at (0, 3) {apply\_rule};
+		\node [style=yellow-box] (1) at (1, 0) {mk\_assignment};
+		\node [style=yellow-box] (2) at (2, -3) {mk\_assignment\_nodes};
+		\node [style=yellow-box] (3) at (2, -6) {mk\_assignment\_edges};
+		\node [style=yellow-box] (4) at (1, -9) {instantiate\_rule};
+		\node [style=yellow-box] (5) at (1, -11.75) {apply\_rule};
+	\end{pgfonlayer}
+\end{tikzpicture}

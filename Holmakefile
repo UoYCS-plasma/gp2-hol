@@ -1,0 +1,44 @@
+INCLUDES = /Users/rsoeldner/repo/HOL/examples/category \
+           $(HOLDIR)/src/num/theories/cv_compute/automation
+
+EXTRA_CLEANS = gp2.lex.sml gp2.lex.sig gp2.grm.sml gp2.grm-sig.sml gp2.grm.desc selftest.exe selftest.log gp2convert.exe
+UOFILES = $(patsubst %.sml,%.uo,$(wildcard *.sml))
+
+all: $(DEFAULT_TARGETS) $(UOFILES) selftest.exe
+
+# Exclude executables from automatic .uo building
+.PHONY: all
+
+selftest.exe: selftest.uo gp2Parser.uo
+	$(HOLMOSMLC) -o $@ $<
+
+gp2convert.exe: gp2convert.uo gp2Parser.uo programSyntax.uo
+	$(HOLMOSMLC) -o $@ $<
+
+
+Parsetree.uo: Parsetree.sml
+	$(HOLMOSMLC) -c $<
+
+gp2.grm.sml gp2.grm-sig.sml: gp2.grm Parsetree.uo
+	$(MLYACC) $<
+	$(MV) gp2.grm.sig gp2.grm-sig.sml
+
+gp2.grm-sig.uo: gp2.grm-sig.sml Parsetree.uo
+	$(HOLMOSMLC) -toplevel -c  $<
+
+gp2.grm.uo: gp2.grm.sml gp2.grm-sig.uo Parsetree.uo
+	$(HOLMOSMLC) -toplevel -c -I gp2.grm-sig.ui $<
+
+gp2.lex.sml: gp2.lex
+	$(MLLEX) $<
+
+gp2.lex.uo: gp2.lex.sml
+	$(HOLMOSMLC) -toplevel -c gp2.grm-sig.ui $<
+
+gp2Parser.uo: gp2Parser.sml gp2Parser.ui gp2.grm.uo gp2.lex.uo Parsetree.uo
+	$(HOLMOSMLC) -c -I gp2.grm.ui gp2.lex.ui $<
+
+ifdef HOLSELFTESTLEVEL
+selftest.log: selftest.exe
+	$(tee ./$< 2>&1, $@)
+endif

@@ -1,0 +1,363 @@
+structure P = Parsetree;
+
+%%
+
+%name GP2
+%eop EOF
+
+%term EOF
+    | IF | THENN | ELSE
+    | SKIP | FAIL | BREAK
+    | WHERE
+    | AND | OR | NOT
+    | EDGE | INDEG | OUTDEG
+    | INTERFACE
+    | EMPTY | LENGTH
+    | TRY
+    | RED | GREEN | BLUE | GREY | DASHED | ANY
+    | INT | CHARACTER | STRING | ATOM | LIST
+    | LPAREN | RPAREN | LCURLY | RCURLY | LBRACKET | RBRACKET
+    | PIPE | COMMA | SEMICOLON | EXCLAMATION | DOT | COLON
+    | ADD | SUB | MULT | DIV
+    | RANGLE | LANGLE
+    | EQ | HASH
+    | ARROW
+    | ROOT | BIDIRECTIONAL
+    | NEQ | GTEQ | LTEQ
+    | PROCID of string
+    | ID of string
+    | NUM of int
+    | STR of string
+    | DNUM of real
+    | MAIN
+    | UMINUS
+
+%nonterm Initialise of P.toplevel
+       | Program of P.program
+       | Declaration of P.decl
+       | MainDecl of P.procdecl
+       | ProcDecl of P.procdecl * (P.decl list)
+       | LocalDecls of P.decl list
+       | ComSeq of P.comseq
+       | Command of P.term
+       | Block of P.term
+       | SimpleCommand of P.term
+       | RuleSetCall of P.ruleid list
+       | IDList of P.ruleid list
+       | RuleDecl of P.ruledecl
+       | VarDecls of P.vardecl list
+       | VarList of P.variable list
+       | Inter of P.nodeid list
+       | NodeIDList of P.nodeid list
+       | Type of P.ty
+       | Graph of P.rulegraph
+       | NodeList of P.rulenode list
+       | Node of P.rulenode
+       | EdgeList of P.ruleedge list
+       | Edge of P.ruleedge
+       | Position of P.position
+       | RootNode of bool
+       | Bidirection of bool
+       | CondDecl of P.cond option
+       | Condition of P.cond
+       | Subtype of P.ty
+       | LabelArg of P.rulelabel option
+       | Label of P.rulelabel
+       | List of P.rulelist
+       | AtomExp of P.ruleexpr
+       | ProcID of P.procid
+       | RuleID of P.ruleid
+       | NodeID of P.nodeid
+       | EdgeID of P.edgeid
+       | Variable of P.variable
+       | HostGraph of P.hostgraph
+       | HostNodeList of P.hostnode list
+       | HostNode of P.hostnode
+       | HostEdgeList of P.hostedge list
+       | HostEdge of P.hostedge
+       | HostID of P.hostid
+       | HostLabel of P.hostlabel
+       | HostList of P.hostlist
+       | HostExp of P.hostexpr
+       | Mark of P.mark
+
+%start Initialise
+%noshift EOF
+%pos (int * int)
+
+%left OR
+%left AND
+%left NOT
+%left ADD SUB
+%left MULT DIV
+%left UMINUS
+%left DOT
+%left COLON
+
+%verbose
+
+%%
+
+Initialise: Program EOF
+		(P.toplevel_program Program)
+          | HostGraph EOF
+		(P.toplevel_hostgraph HostGraph)
+          (* | RuleDecl ( () ) *)
+
+Program: Declaration ([Declaration])
+       | Program Declaration (Declaration :: Program)
+
+Declaration: MainDecl (P.decl_proc (MainDecl, []))
+     	   | ProcDecl (P.decl_proc ProcDecl)
+           | RuleDecl (P.decl_rule RuleDecl)
+
+MainDecl: MAIN EQ ComSeq ({pid = "Main", cmds = ComSeq})
+
+ProcDecl: ProcID EQ ComSeq
+		({pid = ProcID, cmds = ComSeq}, [])
+        | ProcID EQ LBRACKET LocalDecls RBRACKET ComSeq
+		 ({pid = ProcID, cmds = ComSeq}, LocalDecls)
+        (* | RuleID EQ LBRACKET LocalDecls RBRACKET ComSeq ( () ) *)
+
+LocalDecls: (* empty *) ([])
+          | LocalDecls RuleDecl
+		((P.decl_rule RuleDecl) :: LocalDecls)
+        | LocalDecls ProcDecl ((P.decl_proc ProcDecl) :: LocalDecls)
+
+ComSeq: Command
+		([Command])
+      | ComSeq SEMICOLON Command
+		( Command :: ComSeq )
+      (* | ComSeq COMMA Command ( () ) *)
+
+Command: Block (Block)
+       | Block OR Block (P.term_or (Block1, Block2))
+       | IF Block THENN Block (P.term_ifte (Block1, SOME Block2, NONE))
+       | IF Block THENN Block ELSE Block (P.term_ifte (Block1, SOME Block2, SOME Block3))
+       | IF Block ELSE Block (P.term_ifte (Block1, NONE, SOME Block2))
+       | TRY Block (P.term_trte (Block, NONE, NONE))
+       | TRY Block THENN Block (P.term_trte (Block1, SOME Block2, NONE))
+       | TRY Block ELSE	Block (P.term_trte (Block1, NONE, SOME Block2))
+       | TRY Block THENN Block ELSE Block (P.term_trte (Block1, SOME Block2, SOME Block3))
+
+Block: LPAREN ComSeq RPAREN
+		(P.term_seq ComSeq)
+     | LPAREN ComSeq RPAREN EXCLAMATION
+		(P.term_alap (P.term_seq ComSeq))
+     (* | error RPAREN ( () ) *)
+     | SimpleCommand (SimpleCommand)
+     | SimpleCommand EXCLAMATION (P.term_alap SimpleCommand)
+     | SKIP (P.term_skip)
+     | FAIL (P.term_fail)
+     | BREAK (P.term_break)
+
+SimpleCommand: RuleSetCall (P.term_rscall RuleSetCall)
+             | RuleID (P.term_rule RuleID)
+             | ProcID (P.term_proc ProcID)
+
+RuleSetCall: LCURLY IDList RCURLY (IDList)
+           (* | error RCURLY ( () ) *)
+
+IDList: RuleID ([RuleID])
+      | IDList COMMA RuleID (RuleID :: IDList)
+      (* | ProcID ( () ) *)
+      (* | IDList SEMICOLON RuleID ( () ) *)
+
+RuleDecl: RuleID LPAREN VarDecls RPAREN Graph ARROW Graph Inter CondDecl
+		({rid = RuleID, vars = VarDecls, lhs = Graph1, rhs = Graph2, interf = Inter, cond = CondDecl})
+        | RuleID LPAREN RPAREN Graph ARROW Graph Inter CondDecl
+		({rid = RuleID, vars = [], lhs = Graph1, rhs = Graph2, interf = Inter, cond = CondDecl})
+
+        (* | ProcID LPAREN VarDecls RPAREN Graph ARROW Graph Inter CondDecl	  *)
+        (* | RuleID LPAREN VarDecls SEMICOLON RPAREN Graph ARROW Graph Inter CondDecl *)
+
+
+VarDecls: VarList COLON Type
+		([{vars = VarList, ty = Type}])
+        | VarDecls SEMICOLON VarList COLON Type
+		({vars = VarList, ty = Type} :: VarDecls)
+
+VarList: Variable ([Variable])
+       | VarList COMMA Variable (Variable :: VarList)
+
+Inter: INTERFACE EQ LCURLY RCURLY ([])
+     | INTERFACE EQ LCURLY NodeIDList RCURLY (NodeIDList)
+     (* | error RCURLY ( () ) *)
+
+NodeIDList: NodeID ([NodeID])
+          | NodeIDList COMMA NodeID (NodeID :: NodeIDList)
+
+Type: INT (P.int_ty)
+    | CHARACTER (P.char_ty)
+    | STRING (P.string_ty)
+    | ATOM (P.atom_ty)
+    | LIST (P.list_ty)
+
+Graph: LBRACKET PIPE RBRACKET
+		({nodes = [], edges = [], position = NONE})
+     | LBRACKET Position PIPE PIPE RBRACKET
+		({nodes = [], edges = [], position = SOME Position})
+     | LBRACKET NodeList PIPE RBRACKET
+		({nodes = NodeList, edges = [], position = NONE})
+     | LBRACKET Position PIPE NodeList PIPE RBRACKET
+		({nodes = NodeList, edges = [], position = SOME Position})
+     | LBRACKET NodeList PIPE EdgeList RBRACKET
+		({nodes = NodeList, edges = EdgeList, position = NONE})
+     | LBRACKET Position PIPE NodeList PIPE EdgeList RBRACKET
+		({nodes = NodeList, edges = EdgeList, position = SOME Position})
+
+NodeList: Node ([Node])
+        | NodeList Node (Node :: NodeList)
+
+Node: LPAREN NodeID RootNode COMMA Label RPAREN
+		({nid = NodeID, rooted = RootNode, label = Label, position = NONE})
+    | LPAREN NodeID RootNode COMMA Label Position RPAREN
+        	({nid = NodeID, rooted = RootNode, label = Label, position = SOME Position})
+
+
+EdgeList: Edge ([Edge])
+        | EdgeList Edge (Edge :: EdgeList)
+
+Edge: LPAREN EdgeID Bidirection COMMA NodeID COMMA NodeID COMMA Label RPAREN
+		({eid = EdgeID, bidirectional = Bidirection, src = NodeID1, trg = NodeID2, label = Label})
+
+Position: LANGLE DNUM COMMA DNUM RANGLE
+		( {x = DNUM1, y = DNUM2} )
+        | LANGLE NUM COMMA NUM RANGLE
+		( {x = Real.fromInt NUM1, y = Real.fromInt NUM2} )
+        | LANGLE NUM COMMA SUB NUM RANGLE
+		( {x = Real.fromInt NUM1, y = ~(Real.fromInt NUM2)} )
+        | LANGLE SUB NUM COMMA  NUM RANGLE
+		( {x = ~(Real.fromInt NUM1), y = Real.fromInt NUM2} )
+        | LANGLE SUB NUM COMMA SUB NUM RANGLE
+		( {x = ~(Real.fromInt NUM1), y = ~(Real.fromInt NUM2)} )
+        | LANGLE DNUM COMMA NUM RANGLE
+		( {x = DNUM, y = Real.fromInt NUM} )
+        | LANGLE DNUM COMMA SUB NUM RANGLE
+		( {x = DNUM, y = ~(Real.fromInt NUM)} )
+        | LANGLE NUM COMMA DNUM RANGLE
+		( {x = Real.fromInt NUM, y = DNUM} )
+        | LANGLE SUB NUM COMMA DNUM RANGLE
+		( {x = ~(Real.fromInt NUM), y = DNUM} )
+
+RootNode: (* empty *) ( false )
+        | ROOT ( true )
+
+Bidirection: (* empty *) (false)
+           | BIDIRECTIONAL (true)
+
+CondDecl: (* empty *) (NONE)
+        | WHERE Condition (SOME Condition)
+
+Condition: Subtype LPAREN Variable RPAREN
+		(P.cond_issubtype (Subtype, Variable))
+         | EDGE LPAREN NodeID COMMA NodeID  LabelArg RPAREN
+		(P.cond_edgetest (NodeID1, NodeID2, LabelArg))
+         | List EQ List
+		(P.cond_eq (List1, List2))
+         | List NEQ List
+		(P.cond_neq (List1, List2))
+         | AtomExp RANGLE AtomExp
+		(P.cond_expr_gt (AtomExp1, AtomExp2))
+         | AtomExp GTEQ AtomExp
+		(P.cond_expr_gteq (AtomExp1, AtomExp2))
+         | AtomExp LANGLE AtomExp
+		(P.cond_expr_lt (AtomExp1, AtomExp2))
+	 | AtomExp LTEQ AtomExp
+		(P.cond_expr_lteq (AtomExp1, AtomExp2))
+         | NOT Condition
+	       	(P.cond_not Condition)
+         | Condition OR Condition
+		(P.cond_or (Condition1, Condition2))
+         | Condition AND Condition
+		(P.cond_and (Condition1, Condition2))
+         | LPAREN Condition RPAREN (Condition)
+
+Subtype: INT (P.int_ty)
+       | CHARACTER (P.char_ty)
+       | STRING (P.string_ty)
+       | ATOM (P.atom_ty)
+
+LabelArg: (* empty *) (NONE)
+        | COMMA Label (SOME Label)
+
+Label: List
+         ({list = List, mark = NONE})
+     | List HASH Mark
+        ({list = List, mark = SOME Mark})
+     (* | List HASH ANY_Mark ( () ) *)
+
+List: AtomExp ([AtomExp])
+    | List COLON AtomExp (AtomExp :: List)
+    | EMPTY ([])
+    | List COLON EMPTY (List)
+
+AtomExp: Variable (P.ruleexpr_var Variable)
+       | NUM (P.ruleexpr_num NUM)
+       | STR (P.ruleexpr_str STR)
+       | INDEG LPAREN NodeID RPAREN (P.ruleexpr_indeg NodeID)
+       | OUTDEG LPAREN NodeID RPAREN (P.ruleexpr_outdeg NodeID)
+       | LENGTH LPAREN Variable RPAREN (P.ruleexpr_length Variable)
+       | SUB AtomExp %prec UMINUS (P.ruleexpr_negate AtomExp)
+       | LPAREN AtomExp RPAREN (AtomExp)
+       | AtomExp ADD AtomExp (P.ruleexpr_add (AtomExp1, AtomExp2))
+       | AtomExp SUB AtomExp (P.ruleexpr_sub (AtomExp1, AtomExp2))
+       | AtomExp MULT AtomExp (P.ruleexpr_mult (AtomExp1, AtomExp2))
+       | AtomExp DIV AtomExp (P.ruleexpr_div (AtomExp1, AtomExp2))
+       | AtomExp DOT AtomExp (P.ruleexpr_concat (AtomExp1, AtomExp2))
+
+ProcID: PROCID (PROCID)
+RuleID: ID (ID)
+NodeID: ID (ID)
+      | NUM ((Int.toString NUM))
+EdgeID: ID (ID)
+      | NUM ((Int.toString NUM))
+Variable: ID (ID)
+
+HostGraph: LBRACKET PIPE RBRACKET
+		({nodes = [], edges = [], position = NONE})
+         | LBRACKET Position PIPE PIPE RBRACKET
+		({nodes = [], edges = [], position = SOME Position})
+         | LBRACKET HostNodeList PIPE RBRACKET
+		({nodes = HostNodeList, edges = [], position = NONE})
+         | LBRACKET Position PIPE HostNodeList PIPE RBRACKET
+		({nodes = HostNodeList, edges = [], position = SOME Position})
+         | LBRACKET HostNodeList PIPE HostEdgeList RBRACKET
+		({nodes = HostNodeList, edges = HostEdgeList, position = NONE})
+         | LBRACKET Position PIPE HostNodeList PIPE HostEdgeList RBRACKET
+		({nodes = HostNodeList, edges = HostEdgeList, position = SOME Position})
+
+HostNodeList: HostNode ([HostNode])
+            | HostNodeList HostNode (HostNode :: HostNodeList)
+
+HostNode: LPAREN HostID RootNode COMMA HostLabel RPAREN
+		({nid = HostID, rooted = RootNode, label = HostLabel, position = NONE})
+HostNode: LPAREN HostID RootNode COMMA HostLabel Position RPAREN
+		({nid = HostID, rooted = RootNode, label = HostLabel, position = SOME Position})
+
+HostEdgeList: HostEdge ([HostEdge])
+            | HostEdgeList HostEdge (HostEdge :: HostEdgeList)
+
+HostEdge: LPAREN HostID COMMA HostID COMMA HostID COMMA HostLabel RPAREN
+		({eid = HostID1, src = HostID2, trg = HostID3, label = HostLabel})
+
+HostID:	NUM (Int.toString NUM)
+
+HostLabel: HostList ({list = HostList, mark = NONE})
+         | HostList HASH Mark ({list = HostList, mark = SOME Mark})
+
+HostList: HostExp ([HostExp])
+        | HostList COLON HostExp (HostExp :: HostList)
+        | EMPTY ([])
+        | HostList COLON EMPTY (HostList)
+
+HostExp: NUM (P.hostexpr_num NUM)
+       | SUB NUM %prec UMINUS (P.hostexpr_num (~NUM))
+       | STR (P.hostexpr_str STR)
+
+Mark: RED (P.red_mark)
+    | GREEN (P.green_mark)
+    | BLUE (P.blue_mark)
+    | GREY  (P.grey_mark)
+    | DASHED (P.dashed_mark)
+    | ANY (P.any_mark)

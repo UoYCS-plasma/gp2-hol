@@ -1,0 +1,32 @@
+
+@Thm{eval_label_ConstInt_rule, content = "sem.eval_label_ConstInt", options = "stackedrule,rulename=ConstInt"}
+@Thm{eval_label_ConstString_rule, content = "sem.eval_label_ConstString", options = "stackedrule,rulename=ConstString"}
+@Thm{eval_label_ConstChar_rule, content = "sem.eval_label_ConstChar", options = "stackedrule,rulename=ConstChar"}
+@Thm{eval_label_Nil_rule, content = "sem.eval_label_Nil", options = "stackedrule,rulename=Nil"}
+@Thm{eval_label_VarBound_rule, content = "sem.eval_label_VarBound", options = "stackedrule,rulename=VarBound"}
+@Thm{eval_label_Outdeg_rule, content = "sem.eval_label_Outdeg", options = "stackedrule,rulename=Outdeg"}
+@Thm{eval_label_Indeg_rule, content = "sem.eval_label_Indeg", options = "stackedrule,rulename=Indeg"}
+@Thm{eval_label_LengthInt_rule, content = "sem.eval_label_LengthInt", options = "stackedrule,rulename=LengthInt"}
+@Thm{eval_label_LengthString_rule, content = "sem.eval_label_LengthString", options = "stackedrule,rulename=LengthString"}
+@Thm{eval_label_LengthChar_rule, content = "sem.eval_label_LengthChar", options = "stackedrule,rulename=LengthChar"}
+@Thm{eval_label_Add_rule, content = "sem.eval_label_Add", options = "stackedrule,rulename=Add"}
+@Thm{eval_label_Sub_rule, content = "sem.eval_label_Sub", options = "stackedrule,rulename=Sub"}
+@Thm{eval_label_Mult_rule, content = "sem.eval_label_Mult", options = "stackedrule,rulename=Mult"}
+@Thm{eval_label_Div_rule, content = "sem.eval_label_Div", options = "stackedrule,rulename=Div"}
+@Thm{eval_label_Negate_rule, content = "sem.eval_label_Negate", options = "stackedrule,rulename=Negate"}
+@Thm{eval_label_Concat_rule, content = "sem.eval_label_Concat", options = "stackedrule,rulename=Concat"}
+@Thm{eval_label_Empty_rule, content = "sem.eval_label_Empty", options = "stackedrule,rulename=Empty"}
+@Thm{eval_label_Cons_rule, content = "sem.eval_label_Cons", options = "stackedrule,rulename=Cons"}
+
+@Thm{eval_condition_edgeTest, content = "sem.eval_condition_edgeTest", options = "stackedrule,rulename=edgeTest"}
+@Thm{eval_condition_edgeTestLabel, content = "sem.eval_condition_edgeTestLabel", options = "stackedrule,rulename=edgeTestLabel"}
+@Thm{eval_condition_subType, content = "sem.eval_condition_subType", options = "stackedrule,rulename=subType"}
+@Thm{eval_condition_condLabelEq, content = "sem.eval_condition_condLabelEq", options = "stackedrule,rulename=condLabelEq"}
+@Thm{eval_condition_condLabelNeq, content = "sem.eval_condition_condLabelNeq", options = "stackedrule,rulename=condLabelNeq"}
+@Thm{eval_condition_condLabelGt, content = "sem.eval_condition_condLabelGt", options = "stackedrule,rulename=condLabelGt"}
+@Thm{eval_condition_condLabelGteq, content = "sem.eval_condition_condLabelGteq", options = "stackedrule,rulename=condLabelGteq"}
+@Thm{eval_condition_condLabelLt, content = "sem.eval_condition_condLabelLt", options = "stackedrule,rulename=condLabelLt"}
+@Thm{eval_condition_condLabelLteq, content = "sem.eval_condition_condLabelLteq", options = "stackedrule,rulename=condLabelLteq"}
+@Thm{eval_condition_condAnd, content = "sem.eval_condition_condAnd", options = "stackedrule,rulename=condAnd"}
+@Thm{eval_condition_condOr, content = "sem.eval_condition_condOr", options = "stackedrule,rulename=condOr"}
+@Thm{eval_condition_condNot, content = "sem.eval_condition_condNot", options = "stackedrule,rulename=condNot"}

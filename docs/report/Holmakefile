@@ -1,0 +1,10 @@
+INCLUDES = ../../
+
+EXTRA_CLEANS = report.aux report.fls report.tde report.tid report.out report.pdf report.log report.dvi report.aux report.hix report.fdb_latexmk munge.exe report.bbl report.synctex.gz report.toc
+ALL: report.pdf
+
+munge.exe: ../../gp2Theory.uo
+	$(protect $(HOLDIR)/bin/mkmunge.exe) ../../gp2Theory
+
+report.pdf: report.tex munge.exe
+	latexmk -pdf -g report.tex
