@@ -179,15 +179,13 @@ fun generate_theory_file filepath =
     handle
       exn => print ("Error processing " ^ filepath ^ ": " ^ exnMessage exn ^ "\n")
 
-val () = generate_theory_file "examples/program/transitive-closure.gp2";
-(*
- val args = CommandLine.arguments ();
- case args of
-        [filepath] =>
-        (if OS.FileSys.access (filepath, [OS.FileSys.A_READ])
-         then generate_theory_file filepath
-         else print ("Error: Cannot read file " ^ filepath ^ "\n"))
-      | _ =>
-        print ("Usage: gp2convert <gp2_file>\n" ^
-               "  Converts a GP2 program file to a HOL4 theory file\n" ^
-               "  Example: gp2convert examples/program/acyclic.gp2\n") *)
+fun main () =
+  case CommandLine.arguments () of
+      [filepath] =>
+      (if OS.FileSys.access (filepath, [OS.FileSys.A_READ])
+       then generate_theory_file filepath
+       else print ("Error: Cannot read file " ^ filepath ^ "\n"))
+    | _ =>
+      print ("Usage: gp2convert <gp2_file>\n" ^
+             "  Converts a GP2 program file to a HOL4 theory file\n" ^
+             "  Example: gp2convert examples/program/acyclic.gp2\n")

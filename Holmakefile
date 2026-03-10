@@ -13,7 +13,7 @@ selftest.exe: selftest.uo gp2Parser.uo
 	$(HOLMOSMLC) -o $@ $<
 
 gp2convert.exe: gp2convert.uo gp2Parser.uo programSyntax.uo
-	$(HOLMOSMLC) -o $@ $<
+	$(protect $(HOLDIR)/bin/buildheap) --holstate=$(HOLDIR)/bin/hol.state -o $@ --exe main gp2convert
 
 
 Parsetree.uo: Parsetree.sml
