@@ -89,7 +89,8 @@ in
 	end
       | P.toplevel_program p =>
 	let
-	    val p_tm = programSyntax.mk_program_tm p
+	    val p_expanded = programSyntax.expand_bidir_rules p
+	    val p_tm = programSyntax.mk_program_tm p_expanded
 	    val thm_term = "wf_program ^p_tm"
             val thm_name = "program_" ^ to_thm_name fname ^ "_wf"
             val _ = print ("Created program term for " ^ thm_name ^ "\n")

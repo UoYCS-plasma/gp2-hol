@@ -194,6 +194,132 @@ fun mk_ruledecl_from_parsetree (ruledecl: P.ruledecl) =
     in TypeBase.mk_record (rule_ty, components)
     end
 
+(* Expand bidirectional edges: for k bidir edges in a rule, produce 2^k
+   copies each picking one orientation per edge. *)
+fun expand_bidir_rules (prog : P.program) : P.program =
+    let
+        (* Collect bidirectional edge IDs from a rulegraph *)
+        fun bidir_eids (g : P.rulegraph) =
+            List.mapPartial (fn (e : P.ruleedge) =>
+                if #bidirectional e then SOME (#eid e) else NONE) (#edges g)
+
+        (* Generate all 2^k boolean lists *)
+        fun all_orientations 0 = [[]]
+          | all_orientations k =
+            let val rest = all_orientations (k - 1)
+            in map (fn l => false :: l) rest @ map (fn l => true :: l) rest
+            end
+
+        (* Apply orientation to a graph: swap src/trg for edges in swap_set,
+           set all bidirectional=false *)
+        fun apply_orientation swap_set (g : P.rulegraph) : P.rulegraph =
+            let fun member x xs = List.exists (fn y => y = x) xs
+                fun rewrite_edge (e : P.ruleedge) =
+                    let val swap = member (#eid e) swap_set
+                    in {eid = #eid e, bidirectional = false,
+                        src = if swap then #trg e else #src e,
+                        trg = if swap then #src e else #trg e,
+                        label = #label e}
+                    end
+            in {nodes = #nodes g,
+                edges = map rewrite_edge (#edges g),
+                position = #position g}
+            end
+
+        (* Expand one rule declaration into 1 or 2^k variants *)
+        fun expand_one_rule (rd : P.ruledecl) : P.ruledecl list =
+            let val lhs_bids = bidir_eids (#lhs rd)
+                val rhs_bids = bidir_eids (#rhs rd)
+                fun member x xs = List.exists (fn y => y = x) xs
+                val all_bids = lhs_bids @
+                    List.filter (fn e => not (member e lhs_bids)) rhs_bids
+                val k = length all_bids
+            in if k = 0 then [rd]
+               else
+                let val orients = all_orientations k
+                    fun mk_variant (i, orient) =
+                        let val swap_set = List.mapPartial
+                                (fn (eid, sw) => if sw then SOME eid else NONE)
+                                (ListPair.zip (all_bids, orient))
+                        in {rid = #rid rd ^ "_" ^ Int.toString (i + 1),
+                            vars = #vars rd,
+                            lhs = apply_orientation swap_set (#lhs rd),
+                            rhs = apply_orientation swap_set (#rhs rd),
+                            interf = #interf rd,
+                            cond = #cond rd}
+                        end
+                in List.tabulate (length orients,
+                        fn i => mk_variant (i, List.nth (orients, i)))
+                end
+            end
+
+        (* Phase 1: Expand all decl_rule entries, build rid mapping *)
+        fun expand_decls (decls : P.decl list)
+                : P.decl list * (string * string list) list =
+            let fun process (decl, (acc_d, acc_m)) =
+                    case decl of
+                        P.decl_rule rd =>
+                        let val variants = expand_one_rule rd
+                            val new_rids = map #rid variants
+                        in (acc_d @ map P.decl_rule variants,
+                            (#rid rd, new_rids) :: acc_m)
+                        end
+                      | P.decl_proc (pdecl, local_decls) =>
+                        let val (exp_locals, local_m) = expand_decls local_decls
+                        in (acc_d @ [P.decl_proc (pdecl, exp_locals)],
+                            acc_m @ local_m)
+                        end
+            in List.foldl process ([], []) decls
+            end
+
+        (* Phase 2: Rewrite terms referencing expanded rules *)
+        fun lookup_rid mapping rid =
+            case List.find (fn (old, _) => old = rid) mapping of
+                SOME (_, new_rids) => SOME new_rids
+              | NONE => NONE
+
+        fun rewrite_term mapping (t : P.term) : P.term =
+            case t of
+                P.term_rule rid =>
+                (case lookup_rid mapping rid of
+                    SOME [single] => P.term_rule single
+                  | SOME new_rids => P.term_rscall new_rids
+                  | NONE => t)
+              | P.term_rscall rids =>
+                let val new_rids = List.concat
+                        (map (fn r => case lookup_rid mapping r of
+                                          SOME rs => rs | NONE => [r]) rids)
+                in P.term_rscall new_rids
+                end
+              | P.term_seq ts =>
+                P.term_seq (map (rewrite_term mapping) ts)
+              | P.term_or (t1, t2) =>
+                P.term_or (rewrite_term mapping t1, rewrite_term mapping t2)
+              | P.term_ifte (c, t1, t2) =>
+                P.term_ifte (rewrite_term mapping c,
+                             Option.map (rewrite_term mapping) t1,
+                             Option.map (rewrite_term mapping) t2)
+              | P.term_trte (c, t1, t2) =>
+                P.term_trte (rewrite_term mapping c,
+                             Option.map (rewrite_term mapping) t1,
+                             Option.map (rewrite_term mapping) t2)
+              | P.term_alap t1 =>
+                P.term_alap (rewrite_term mapping t1)
+              | _ => t
+
+        fun rewrite_decls mapping (decls : P.decl list) : P.decl list =
+            map (fn decl => case decl of
+                P.decl_rule _ => decl
+              | P.decl_proc ({pid, cmds}, local_decls) =>
+                P.decl_proc ({pid = pid,
+                              cmds = map (rewrite_term mapping) cmds},
+                             rewrite_decls mapping local_decls)
+            ) decls
+
+        val (expanded, mapping) = expand_decls prog
+    in rewrite_decls mapping expanded
+    end
+
 fun mk_program_tm (program: P.program) =
     let fun collect_decls (decls: P.decl list) =
             let fun process_decl (decl, (proc_acc, rule_acc)) = case decl of

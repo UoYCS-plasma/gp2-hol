@@ -125,7 +125,4 @@ sig
   val mk_rule_edge_attr: Parsetree.rulelabel -> term
   val mk_rulegraph_tm: Parsetree.rulegraph -> term
 
-  (* Helper for bidirectional edges *)
-  val expand_bidirectional_edges: Parsetree.ruleedge list -> Parsetree.ruleedge list
-
 end

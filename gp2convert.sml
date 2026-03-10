@@ -71,8 +71,10 @@ fun generate_theory_file filepath =
     in case raw of
         P.toplevel_program prog =>
         let
+            (* Expand bidirectional edges into rule copies *)
+            val expanded_prog = programSyntax.expand_bidir_rules prog
             (* Collect rules and procs *)
-            val (procs, rules) = collect_decls prog
+            val (procs, rules) = collect_decls expanded_prog
 
             val _ = print ("Found " ^ Int.toString (length rules) ^ " rules\n")
             val _ = print ("Found " ^ Int.toString (length procs) ^ " procs\n")

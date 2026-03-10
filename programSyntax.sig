@@ -68,6 +68,9 @@ sig
   val MK_procid: string -> term
   val MK_ruleid: string -> term
 
+  (* Bidirectional edge expansion *)
+  val expand_bidir_rules: Parsetree.program -> Parsetree.program
+
   (* Translation from Parsetree *)
   val mk_term_from_parsetree: Parsetree.term -> term
   val mk_ruledecl_from_parsetree: Parsetree.ruledecl -> term

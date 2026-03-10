@@ -173,35 +173,24 @@ fun mk_rule_edge_attr_map (edges: P.ruleedge list) =
     in finite_mapSyntax.mk_fupdate_list (empty_tm, list_tm)
     end
 
-(* Helper for handling bidirectional edges *)
-fun expand_bidirectional_edges (edges: P.ruleedge list) =
-    let fun process_edge (e: P.ruleedge) =
-            if #bidirectional e
-            then let val reverse_e = {eid = (#eid e) ^ "_rev",
-                                     bidirectional = false,
-                                     src = #trg e,
-                                     trg = #src e,
-                                     label = #label e}
-                 in [e, reverse_e]
-                 end
-            else [e]
-    in List.concat (map process_edge edges)
-    end
-
-(* Main rulegraph construction function *)
+(* Main rulegraph construction function.
+   Bidirectional edges must be eliminated by expand_bidir_rules before this. *)
 fun mk_rulegraph_tm (graph: P.rulegraph) =
     let val {nodes, edges, ...} = graph
-        val expanded_edges = expand_bidirectional_edges edges
+        val _ = if List.exists (fn e => #bidirectional (e : P.ruleedge)) edges
+                then raise ERR "mk_rulegraph_tm"
+                    "bidirectional edge present; call expand_bidir_rules first"
+                else ()
         val V = if null nodes
                 then pred_setSyntax.mk_empty nodeid_ty
                 else pred_setSyntax.prim_mk_set (map (MK_nodeid o #nid) nodes, nodeid_ty)
-        val E = if null expanded_edges
+        val E = if null edges
                 then pred_setSyntax.mk_empty edgeid_ty
-                else pred_setSyntax.prim_mk_set (map (MK_edgeid o #eid) expanded_edges, edgeid_ty)
-        val s = mk_srctrg_map ((#src: P.ruleedge -> string), expanded_edges)
-        val t = mk_srctrg_map ((#trg: P.ruleedge -> string), expanded_edges)
+                else pred_setSyntax.prim_mk_set (map (MK_edgeid o #eid) edges, edgeid_ty)
+        val s = mk_srctrg_map ((#src: P.ruleedge -> string), edges)
+        val t = mk_srctrg_map ((#trg: P.ruleedge -> string), edges)
         val l = mk_rule_node_attr_map nodes
-        val m = mk_rule_edge_attr_map expanded_edges
+        val m = mk_rule_edge_attr_map edges
         val p = mk_rooted_map nodes
         val components = [("V", V), ("E", E), ("s", s), ("t", t), ("l", l), ("m", m), ("p", p)]
     in TypeBase.mk_record (rulegraph_ty, components)
